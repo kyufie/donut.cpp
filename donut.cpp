@@ -90,6 +90,18 @@ void draw_torus(Fb &fb, ZBuf &zbuf, unsigned int r1, unsigned int r2,
   const float sin_a = sin(rot_x), cos_a = cos(rot_x);
   const float sin_b = sin(rot_z), cos_b = cos(rot_z);
 
+  auto rotate_around_x = [&](float *y, float *z) {
+    float tmp_y = *y, tmp_z = *z;
+    *y = tmp_y * cos_a + tmp_z * sin_a;
+    *z = tmp_z * cos_a - tmp_y * sin_a;
+  };
+
+  auto rotate_around_z = [&](float *x, float *y) {
+    float tmp_x = *x, tmp_y = *y;
+    *x = tmp_x * cos_b + tmp_y * sin_b;
+    *y = tmp_y * cos_b - tmp_x * sin_b;
+  };
+
   // Ensure that the torus is scaled so that the longest part of the torus
   // (calculated at z = 0) fill 6/8-th of the framebuffer.
   // screen_width * 3/8 = mult * (r1 + r2) / (z_offset + z)
@@ -114,13 +126,8 @@ void draw_torus(Fb &fb, ZBuf &zbuf, unsigned int r1, unsigned int r2,
       float torus_z = circle_x * -sin_theta;
 
       // For the animation, do two more rotations around the x and z axes.
-      float torus_x2 = torus_x;
-      float torus_y2 = torus_y * cos_a + torus_z * sin_a;
-      float torus_z2 = torus_z * cos_a - torus_y * sin_a;
-
-      float torus_x3 = torus_x2 * cos_b + torus_y2 * sin_b;
-      float torus_y3 = torus_x2 * -sin_b + torus_y2 * cos_b;
-      float torus_z3 = z_offset + torus_z2;
+      rotate_around_x(&torus_y, &torus_z);
+      rotate_around_z(&torus_x, &torus_y);
 
       // Precompute part of the scale value.
       // Division can be slow, to minimize its effect, we do one division
@@ -128,27 +135,23 @@ void draw_torus(Fb &fb, ZBuf &zbuf, unsigned int r1, unsigned int r2,
       // multiplication, which is said to be much faster compared to two
       // divisions. However, the difference here may not be as meaningful, I'm
       // not sure.
-      float ooz = 1 / torus_z3;
+      float ooz = 1 / (z_offset + torus_z);
 
       // Move the coordinate origin to the center of the screen and scale all
       // points. The y axis is flipped because y goes up in 3D space but down in
       // 2D displays.
-      int screen_x = (float)fb.width / 2 + mult_x * ooz * torus_x3;
-      int screen_y = (float)fb.height / 2 - mult_y * ooz * torus_y3;
+      int screen_x = (float)fb.width / 2 + mult_x * ooz * torus_x;
+      int screen_y = (float)fb.height / 2 - mult_y * ooz * torus_y;
 
       // Calculate the surface normal for luminance. This is the direction at
       // which a point is facing.
-      float n_x1 = cos_phi * cos_theta;
-      float n_y1 = sin_phi;
-      float n_z1 = -sin_theta * cos_phi;
+      float n_x = cos_phi * cos_theta;
+      float n_y = sin_phi;
+      float n_z = -sin_theta * cos_phi;
 
       // Rotate the surface normal the same way points are rotated.
-      float n_x2 = n_x1;
-      float n_y2 = n_y1 * cos_a + n_z1 * sin_a;
-      float n_z2 = -sin_a * n_y1 + n_z1 * cos_a;
-
-      float n_y3 = n_x2 * -sin_b + n_y2 * cos_b;
-      float n_z3 = n_z2;
+      rotate_around_x(&n_y, &n_z);
+      rotate_around_z(&n_x, &n_y);
 
       // Calculate luminance using the dot product between the surface
       // normal and a fixed vector [0, 1, -1]. In other words, illuminate the
@@ -156,7 +159,7 @@ void draw_torus(Fb &fb, ZBuf &zbuf, unsigned int r1, unsigned int r2,
       // closer the surface direction matches the given direction, the brighter
       // it gets.
       // luminance = x(0) + y(1) + z(-1)
-      float luminance = n_y3 - n_z3;
+      float luminance = n_y - n_z;
 
       // Check if the current point is eligible for plotting. If the point is
       // located behind what's already plotted, then ignore it.
