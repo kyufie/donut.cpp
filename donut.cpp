@@ -97,9 +97,6 @@ void draw_torus(Fb &fb, ZBuf &zbuf, unsigned int r1, unsigned int r2,
   const float mult_x = fb.width * z_offset * 3 / (8 * (r1 + r2));
   const float mult_y = fb.height * z_offset * 3 / (8 * (r1 + r2));
 
-  fb.clear();
-  zbuf.clear();
-
   for (float theta = 0; theta < 2 * M_PI; theta += angle_step_theta) {
     const float cos_theta = cos(theta), sin_theta = sin(theta);
 
@@ -186,8 +183,12 @@ int main() {
   float rot = 0;
   while (true) {
     clear_terminal();
+    fb.clear();
+    zbuf.clear();
+
     draw_torus(fb, zbuf, r1, r2, z_offset, 0.02, 0.02, rot * 2, rot);
     print_fb(fb);
+
     usleep(30000);
     rot += 0.02;
   }
