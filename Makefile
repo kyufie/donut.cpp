@@ -1,2 +1,2 @@
-donut:
-	$(CXX) donut.cpp -lm -o $@
+donut: donut.cpp
+	$(CXX) $^ -lm -o $@
